@@ -1,0 +1,11 @@
+#reservations {
+  display: grid;
+  gap: 0.5rem;
+}
+
+li.reservation {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #eee;
+  padding: 0.5rem;
+}

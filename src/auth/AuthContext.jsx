@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { API } from "../api/ApiContext.js";
+import { API } from "../api/ApiContext.jsx";
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
