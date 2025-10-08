@@ -1,32 +1,35 @@
 import { useState } from "react";
 import { useApi } from "./ApiContext.jsx";
+import { useAuth } from "../auth/AuthContext.jsx";
 
-function useMutation(resource, options = {}) {
-  const { request } = useApi();
+export default function useMutation(method, resource, invalidateTags = []) {
+  const { request, invalidateTags: invalidate } = useApi();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [data, setData] = useState(null);
 
-  const mutate = async (body) => {
+  async function mutate(body) {
     setLoading(true);
     setError(null);
     try {
       const result = await request(resource, {
-        method: options.method || "POST",
-        headers: { "Content-Type": "application/json" },
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(body),
       });
-      setData(result);
+      invalidate(invalidateTags);
       return result;
     } catch (err) {
       console.error("Mutation error:", err);
-      setError(err.message);
+      setError(err.message || err);
+      return null;
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  return { mutate, data, loading, error };
+  return { mutate, loading, error };
 }
-
-export default useMutation; // ✅ add this

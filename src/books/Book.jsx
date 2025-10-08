@@ -1,51 +1,43 @@
+import { useParams, Link, useNavigate } from "react-router-dom";
 import useQuery from "../api/useQuery";
-import useMutation from "../api/useMutation";
-import { useAuth } from "../api/AuthContext";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState } from "react";
 
 export default function Book() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: book, loading, error } = useQuery(`/books/${id}`, "book");
-  const { token } = useAuth();
+  const [reserved, setReserved] = useState(false);
+
   if (loading) return <p>Loading...</p>;
-  if (error || !book) return <p>{`Error loading book ${error}`}</p>;
+  if (error) return <p>Error loading book: {error}</p>;
+  if (!book) return <p>No book found.</p>;
+
   return (
     <section id="book">
+      <h1>{book.title}</h1>
       <figure className="center-children">
-        <img alt={`Cover image of ${book.title} src=${book.coverimage}`} />
+        <img
+          src={book.coverImage || book.coverimage || ""}
+          alt={`Cover of ${book.title}`}
+        />
       </figure>
-      <section>
-        <h1>{book.title}</h1>
-        <p>{book.author}</p>
-        <p>{book.description}</p>
-        {token && <ReserveButton book={book} />}
-      </section>
+      <p>
+        <strong>Author:</strong> {book.author}
+      </p>
+      <p>{book.description}</p>
+      {!book.isReserved && (
+        <button
+          onClick={() => {
+            setReserved(true);
+            navigate("/account");
+          }}
+        >
+          {reserved ? "Reserved!" : "Reserve Book"}
+        </button>
+      )}
+      <p>
+        <Link to="/books">Back to Books</Link>
+      </p>
     </section>
-  );
-}
-
-function ReserveButton({ book }) {
-  const navigate = useNavigate();
-  const {
-    mutate: reserve,
-    loading,
-    error,
-  } = useMutation("POST", "/reservations", ["reservations", "books", "book"]);
-
-  const onReserve = async () => {
-    const success = await reserve({ bookId: book.id });
-    if (success) navigate("/account");
-  };
-
-  if (!book.available)
-    return <button disabled>{`${book.title} is already reserved`}</button>;
-
-  return (
-    <>
-      <button onClick={onReserve}>
-        {loading ? "Reserving..." : `Reserve ${book.title}`}
-      </button>
-      {error && <p>{error}</p>}
-    </>
   );
 }

@@ -1,34 +1,38 @@
-import { userState } from "react";
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 
-import { useAuth } from "./AuthContext";
+import { useAuth } from "./AuthContext.jsx";
 
 /**
  * A form that allows users to log into an existing account.
  */
 
 export default function Login() {
-  const { login } = useAuth();
+  const { token, login, error } = useAuth();
   const navigate = useNavigate();
 
-  const [error, setError] = useState(null);
+  useEffect(() => {
+    if (token) navigate("/books");
+  }),
+    [token, navigate];
 
-  const onLogin = async (formData) => {
-    const email = FormData.get("email");
+  const onLogin = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const email = formData.get("email");
     const password = formData.get("password");
     try {
       await login({ email, password });
       navigate("/books");
     } catch (err) {
       console.error(`Login() error: ${err}`);
-      setError(err);
     }
   };
 
   return (
     <>
       <h1>User Login</h1>
-      <form action={onLogin}>
+      <form onSubmit={onLogin} autoComplete="on">
         <label>
           Email
           <input type="email" name="email" required />

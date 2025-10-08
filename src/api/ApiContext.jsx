@@ -1,38 +1,38 @@
-import { createContext, useContext, useState } from "react";
-import { useAuth } from "../api/AuthContext.jsx";
+import { createContext, useContext } from "react";
+import { useAuth } from "../auth/AuthContext.jsx";
 
-export const API = import.meta.env.VITE_API_BASE;
-export const ApiContext = createContext();
+const ApiContext = createContext();
 
 export function useApi() {
-  return useContext(ApiContext);
+  const context = useContext(ApiContext);
+  if (context === undefined) {
+    throw new Error("useApi must be used inside an <ApiProvider>");
+  }
+  return context;
 }
 
 export function ApiProvider({ children }) {
   const { token } = useAuth();
   const headers = { "Content-Type": "application/json" };
 
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const request = async (resource, options) => {
-    const response = await fetch(`${API}${resource}`, {
-      headers,
-      ...options,
-    });
-    const isJson = /json/.test(response.headers.get("Content-Type"));
+  async function request(resource, options = {}) {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE}${resource}`,
+      {
+        ...options,
+        headers,
+      }
+    );
+    const isJson = response.headers
+      .get("Content-Type")
+      ?.includes("application/json");
     const result = isJson ? await response.json() : await response.text();
     if (!response.ok) throw result;
     return result;
-  };
+  }
 
-  const [tags, setTags] = useState([]);
-  const provideTag = (tag, query) => {
-    setTags({ ...tags, [tag]: query });
-  };
-  const invalidateTags = (invalidTags) => {
-    invalidTags.forEach((tag) => tags[tag]?.());
-  };
-
-  const value = { request, provideTag, invalidateTags };
+  const value = { request };
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
 }

@@ -1,36 +1,40 @@
 import { useState, useEffect } from "react";
 import { useApi } from "./ApiContext.jsx";
 
-/*
-API wrapper for returning data, toggle loading status, error messages
-*/
-
 export default function useQuery(resource, tag) {
   const { request, provideTag } = useApi();
-
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  async function fetchData() {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await request(resource);
-      setData(result);
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    if (tag) provideTag(tag, fetchData);
+    let ignore = false; //useEfect kept re-rendering
+
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await request(resource);
+        if (!ignore) setData(result);
+      } catch (err) {
+        if (!ignore) {
+          console.error(err);
+          setError(err.message || "Failed to fetch data");
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    if (tag && typeof provideTag === "function") {
+      provideTag(tag, fetchData);
+    }
+
     fetchData();
-  }, [resource]);
+    return () => {
+      ignore = true; // cleanup for unmounted components
+    };
+  }, [request, provideTag, resource, tag]);
 
   return { data, loading, error };
 }

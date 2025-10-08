@@ -1,35 +1,42 @@
-import { useState, createContext, useContext } from "react";
-const API = import.meta.env.VITE_API_BASE;
+import { useState, createContext, useContext, useEffect } from "react";
+//import { useApi } from "./ApiContext.jsx";
+import { useNavigate } from "react-router-dom";
+export const API = import.meta.env.VITE_API_BASE;
+
 export const AuthContext = createContext();
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used inside an <AuthProvider>");
-  }
-  return context;
-}
-
 export function AuthProvider({ children }) {
-  function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-      // This line should only ever run if AuthProvider isn't mounted above
-      throw new Error("useAuth must be used inside an <AuthProvider>");
+  //const { request } = useApi();
+  const navigate = useNavigate();
+  const [token, setToken] = useState(() => sessionStorage.getItem("token"));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function register(credentials) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/users/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Registration failed");
+      if (data.token) {
+        setToken(data.token);
+        navigate("/books");
+        sessionStorage.setItem("token", data.token);
+        setUser(data.user || null);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error("Registration error:", err);
+    } finally {
+      setLoading(false);
     }
-    return context;
   }
-
-  const [token, setToken] = useState(() => sessionStorage.getItem("token"));
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => sessionStorage.getItem("token"));
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   async function login(credentials) {
     setLoading(true);
@@ -43,6 +50,7 @@ export function AuthProvider({ children }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
       setToken(data.token);
+      navigate("/books");
       sessionStorage.setItem("token", data.token);
       setUser(data.user || null);
     } catch (err) {
@@ -59,9 +67,41 @@ export function AuthProvider({ children }) {
     sessionStorage.removeItem("token");
   }
 
-  const value = { token, user, loading, error, login, logout };
+  useEffect(() => {
+    if (!token) return;
+    async function fetchUser() {
+      try {
+        const res = await fetch(`${API}/users/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to fetch user");
+        setUser(data);
+      } catch (err) {
+        console.error("fetchUser error:", err);
+        setError(err.message);
+      }
+    }
+    fetchUser();
+  }, [token]);
 
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  )
+  const value = {
+    token,
+    user,
+    loading,
+    error,
+    register,
+    login,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used inside an <AuthProvider>");
   }
+  return context;
+}
